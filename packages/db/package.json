@@ -13,6 +13,7 @@
   "dependencies": {
     "@scriora/analytics": "workspace:*",
     "@scriora/domain": "workspace:*",
+    "@scriora/policies": "workspace:*",
     "pg": "8.16.3"
   },
   "devDependencies": {

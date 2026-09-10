@@ -1,4 +1,5 @@
 import type { TelemetryStore } from "@scriora/analytics";
+import type { GovernanceStore } from "@scriora/policies";
 import type {
   LinkedInDispatchPorts,
   LinkedInOAuthPorts,
@@ -18,5 +19,8 @@ export type ApiDeps = {
     fetchStats?: (input: {
       postUrn: string;
     }) => Promise<{ httpStatus: number; body: unknown }>;
+  };
+  governance?: {
+    store: GovernanceStore;
   };
 };

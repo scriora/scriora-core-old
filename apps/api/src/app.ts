@@ -1,5 +1,7 @@
 import Fastify from "fastify";
 import type { ApiDeps } from "./deps.js";
+import { registerApprovalRoutes } from "./routes/approvals.js";
+import { registerContentRoutes } from "./routes/contents.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerLinkedInOAuthRoutes } from "./routes/linkedin-oauth.js";
 import { registerMediaRoutes } from "./routes/media.js";
@@ -27,6 +29,8 @@ export async function buildApi(deps: ApiDeps = {}) {
   registerHealthRoutes(app);
   registerLinkedInOAuthRoutes(app, deps);
   registerMediaRoutes(app, deps);
+  registerContentRoutes(app, deps);
+  registerApprovalRoutes(app, deps);
   registerPublicationRoutes(app, deps);
   registerTelemetryRoutes(app, deps);
 

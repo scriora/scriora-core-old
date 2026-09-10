@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canTransition } from "./index.js";
+import { canLiveDispatch, canTransition } from "./index.js";
 
 describe("content transitions", () => {
   it("allows review to approval", () => {
@@ -13,5 +13,11 @@ describe("content transitions", () => {
 
   it("does not treat failed as published", () => {
     expect(canTransition("FAILED", "PUBLISHED")).toBe(false);
+  });
+
+  it("does not allow live dispatch before approval", () => {
+    expect(canLiveDispatch("DRAFT")).toBe(false);
+    expect(canLiveDispatch("IN_REVIEW")).toBe(false);
+    expect(canLiveDispatch("APPROVED")).toBe(true);
   });
 });

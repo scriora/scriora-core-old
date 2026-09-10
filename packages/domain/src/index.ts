@@ -1,5 +1,6 @@
 export {
   type ContentState,
+  canLiveDispatch,
   canTransition,
   contentStates,
   type OperatingMode,

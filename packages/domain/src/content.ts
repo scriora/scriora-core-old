@@ -41,3 +41,7 @@ export function transition(
   }
   return ok(to);
 }
+
+export function canLiveDispatch(state: ContentState): boolean {
+  return state === "APPROVED" || state === "SCHEDULED";
+}

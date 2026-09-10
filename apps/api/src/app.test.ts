@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { createMemoryTelemetryStore } from "@scriora/analytics";
 import { createVault } from "@scriora/crypto";
+import { createMemoryGovernanceStore } from "@scriora/policies";
 import {
   createMemoryLinkedInOAuthStore,
   createMemoryLinkedInPublishStore,
@@ -116,10 +117,11 @@ describe("api", () => {
     }
   });
 
-  it("publishes LinkedIn text once and does not call 201 verified", async () => {
+  it("refuses live publish without approval", async () => {
     const vault = createVault(new Map([[1, randomBytes(32)]]), 1);
     let creates = 0;
     const app = await buildApi({
+      governance: { store: createMemoryGovernanceStore() },
       linkedinPublish: {
         now: () => new Date("2026-09-10T12:00:00.000Z"),
         vault,
@@ -145,11 +147,75 @@ describe("api", () => {
         },
       },
     });
-    const payload = {
-      workspaceId: "11111111-1111-4111-8111-111111111111",
-      idempotencyKey: "pub-1",
-      text: "Hello professionals",
-    };
+    const workspaceId = "11111111-1111-4111-8111-111111111111";
+    const draft = await app.inject({
+      method: "POST",
+      url: "/contents",
+      payload: { workspaceId, body: "Hello professionals" },
+    });
+    const contentId = (draft.json() as { id: string }).id;
+    const denied = await app.inject({
+      method: "POST",
+      url: "/publications",
+      payload: { workspaceId, contentId, idempotencyKey: "pub-1" },
+    });
+    expect(draft.statusCode).toBe(200);
+    expect(denied.statusCode).toBe(403);
+    expect(denied.json()).toEqual({ error: "unapproved" });
+    expect(creates).toBe(0);
+    await app.close();
+  });
+
+  it("publishes LinkedIn text once after approval and does not call 201 verified", async () => {
+    const vault = createVault(new Map([[1, randomBytes(32)]]), 1);
+    let creates = 0;
+    const app = await buildApi({
+      governance: { store: createMemoryGovernanceStore() },
+      linkedinPublish: {
+        now: () => new Date("2026-09-10T12:00:00.000Z"),
+        vault,
+        store: createMemoryLinkedInPublishStore([
+          {
+            workspaceId: "11111111-1111-4111-8111-111111111111",
+            memberId: "urn:li:person:abc",
+            canPublish: true,
+            tokenEnvelope: vault.encrypt(
+              new TextEncoder().encode(
+                JSON.stringify({ accessToken: "access" }),
+              ),
+            ),
+          },
+        ]),
+        outbox: createMemoryOutboxStore(),
+        async createShare() {
+          creates += 1;
+          return { httpStatus: 201, restliId: "urn:li:share:1" };
+        },
+        async verifyShare() {
+          return 403;
+        },
+      },
+    });
+    const workspaceId = "11111111-1111-4111-8111-111111111111";
+    const draft = await app.inject({
+      method: "POST",
+      url: "/contents",
+      payload: { workspaceId, body: "Hello professionals" },
+    });
+    const contentId = (draft.json() as { id: string }).id;
+    const submitted = await app.inject({
+      method: "POST",
+      url: `/contents/${contentId}/submit`,
+      payload: { workspaceId },
+    });
+    const approvalId = (submitted.json() as { approval: { id: string } })
+      .approval.id;
+    await app.inject({
+      method: "POST",
+      url: `/approvals/${approvalId}/decide`,
+      payload: { workspaceId, decision: "APPROVED" },
+    });
+    const payload = { workspaceId, contentId, idempotencyKey: "pub-1" };
     const first = await app.inject({
       method: "POST",
       url: "/publications",
@@ -166,6 +232,19 @@ describe("api", () => {
       externalPostId: "urn:li:share:1",
     });
     expect(second.json()).toMatchObject({ status: "PLATFORM_PENDING" });
+    expect(creates).toBe(1);
+    await app.inject({
+      method: "PUT",
+      url: "/autonomy",
+      payload: { workspaceId, dispatchPaused: true },
+    });
+    const paused = await app.inject({
+      method: "POST",
+      url: "/publications",
+      payload: { workspaceId, contentId, idempotencyKey: "pub-paused" },
+    });
+    expect(paused.statusCode).toBe(403);
+    expect(paused.json()).toEqual({ error: "killswitch" });
     expect(creates).toBe(1);
     await app.close();
   });

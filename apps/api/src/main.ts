@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { createVault } from "@scriora/crypto";
 import {
+  createPostgresGovernanceStore,
   createPostgresLinkedInOAuthStore,
   createPostgresLinkedInPublishStore,
   createPostgresOutboxStore,
@@ -88,10 +89,15 @@ const telemetry = pool
   ? { store: createPostgresTelemetryStore(pool) }
   : undefined;
 
+const governance = pool
+  ? { store: createPostgresGovernanceStore(pool) }
+  : undefined;
+
 const app = await buildApi({
   ...(linkedin ? { linkedin } : {}),
   ...(linkedinPublish ? { linkedinPublish } : {}),
   ...(media ? { media } : {}),
   ...(telemetry ? { telemetry } : {}),
+  ...(governance ? { governance } : {}),
 });
 await app.listen({ host, port });

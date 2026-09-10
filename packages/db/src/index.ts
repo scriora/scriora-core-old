@@ -20,6 +20,7 @@ export async function migrate(admin: Client | Pool): Promise<string[]> {
   return files;
 }
 
+export { createPostgresGovernanceStore } from "./stores/governance-store.js";
 export { insertMediaAsset } from "./stores/media-store.js";
 export { createPostgresLinkedInOAuthStore } from "./stores/oauth-store.js";
 export { createPostgresOutboxStore } from "./stores/outbox-store.js";

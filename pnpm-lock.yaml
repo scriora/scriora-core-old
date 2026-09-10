@@ -44,6 +44,9 @@ importers:
       '@scriora/media':
         specifier: workspace:*
         version: link:../../packages/media
+      '@scriora/policies':
+        specifier: workspace:*
+        version: link:../../packages/policies
       '@scriora/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -192,6 +195,9 @@ importers:
       '@scriora/domain':
         specifier: workspace:*
         version: link:../domain
+      '@scriora/policies':
+        specifier: workspace:*
+        version: link:../policies
       pg:
         specifier: 8.16.3
         version: 8.16.3
@@ -281,6 +287,10 @@ importers:
         version: 5.9.3
 
   packages/policies:
+    dependencies:
+      '@scriora/domain':
+        specifier: workspace:*
+        version: link:../domain
     devDependencies:
       '@types/node':
         specifier: 22.20.2
