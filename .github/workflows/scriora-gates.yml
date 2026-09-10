@@ -1,0 +1,143 @@
+name: Scriora gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+  security-events: write
+
+concurrency:
+  group: scriora-core-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    name: Detect source
+    runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.d.outputs.app }}
+      schema: ${{ steps.d.outputs.schema }}
+      publish: ${{ steps.d.outputs.publish }}
+      compose: ${{ steps.d.outputs.compose }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: d
+        shell: bash
+        run: |
+          set -euo pipefail
+          has_ts=$(find apps packages src -name '*.ts' -o -name '*.tsx' 2>/dev/null | head -n 1 || true)
+          has_schema=$(find . -path './.git' -prune -o -name 'schema.prisma' -print -o -name '*.sql' -print 2>/dev/null | head -n 1 || true)
+          has_pub=$(git grep -l -E 'outbox|publish-attempt|idempotency' -- ':!.github' ':!docs' ':!README.md' || true)
+          has_compose=$(ls deploy/compose.yml deploy/docker-compose.yml docker-compose.yml 2>/dev/null || true)
+          echo "app=$([ -n "$has_ts" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "schema=$([ -n "$has_schema" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "publish=$([ -n "$has_pub" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "compose=$([ -n "$has_compose" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  quality:
+    name: Quality
+    needs: detect
+    if: needs.detect.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: echo "Quality gate (lint + strict tsc) will run here once packages exist."
+
+  tests:
+    name: Tests
+    needs: detect
+    if: needs.detect.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: scriora_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: echo "Unit + integration tests will run against ephemeral Postgres and Redis."
+
+  architecture:
+    name: Architecture
+    needs: detect
+    if: needs.detect.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "AST / dependency-direction constraints (adapters inward) will run here."
+
+  migrations:
+    name: Migrations
+    needs: detect
+    if: needs.detect.outputs.schema == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Shadow-database migration drift check will run here."
+
+  tenant:
+    name: Tenant RLS
+    needs: detect
+    if: needs.detect.outputs.schema == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "RLS penetration suite must pass 100% once policies exist."
+
+  publish:
+    name: Publish ledger
+    needs: detect
+    if: needs.detect.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Idempotency + unknown-outcome-must-not-retry tests will run here."
+
+  selfhost:
+    name: Self-host
+    needs: detect
+    if: needs.detect.outputs.compose == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Compose contract: web, API, Postgres, Redis, worker."
+
+  supply:
+    name: Supply chain
+    needs: detect
+    if: needs.detect.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - uses: github/codeql-action/analyze@v3
+
+  coverage:
+    name: Coverage
+    needs: detect
+    if: needs.detect.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Critical packages planning floor is 85% lines."
