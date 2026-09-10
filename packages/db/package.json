@@ -7,10 +7,16 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "migrate": "tsx src/migrate.ts",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "pg": "8.16.3"
   },
   "devDependencies": {
     "@types/node": "22.20.2",
+    "@types/pg": "8.15.5",
+    "tsx": "4.23.13",
     "typescript": "5.9.3"
   }
 }

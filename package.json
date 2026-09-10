@@ -13,7 +13,8 @@
     "test": "vitest run",
     "build": "pnpm -r --if-present build",
     "dev": "pnpm -r --if-present --parallel dev",
-    "architecture": "node scripts/check-architecture.mjs"
+    "architecture": "node scripts/check-architecture.mjs",
+    "db:migrate": "pnpm --filter @scriora/db migrate"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",
