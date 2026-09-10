@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { createVault } from "./index.js";
+import { createVault, hmacHexEqual, hmacSha256Hex } from "./index.js";
 
 describe("AES-256-GCM vault", () => {
   it("round-trips plaintext and rejects tampering", () => {
@@ -39,5 +39,14 @@ describe("AES-256-GCM vault", () => {
     );
     expect(new TextDecoder().decode(rotated.decrypt(sealed))).toBe("old");
     expect(rotated.encrypt(new TextEncoder().encode("new")).keyVersion).toBe(2);
+  });
+});
+
+describe("HMAC grants", () => {
+  it("compares signatures without leaking length mismatches", () => {
+    const hex = hmacSha256Hex("secret", "workspace|upload|image/png");
+    expect(hex).toHaveLength(64);
+    expect(hmacHexEqual(hex, hex)).toBe(true);
+    expect(hmacHexEqual(hex, "00")).toBe(false);
   });
 });

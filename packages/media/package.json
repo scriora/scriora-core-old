@@ -9,6 +9,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@scriora/crypto": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "22.20.2",
     "typescript": "5.9.3"

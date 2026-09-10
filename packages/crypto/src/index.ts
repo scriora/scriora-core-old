@@ -2,7 +2,9 @@ import {
   createCipheriv,
   createDecipheriv,
   createHash,
+  createHmac,
   randomBytes,
+  timingSafeEqual,
 } from "node:crypto";
 
 export function sha256Hex(value: string): string {
@@ -15,6 +17,19 @@ export function randomToken(bytes = 32): string {
 
 export function pkceChallengeS256(verifier: string): string {
   return createHash("sha256").update(verifier).digest("base64url");
+}
+
+export function hmacSha256Hex(secret: string, value: string): string {
+  return createHmac("sha256", secret).update(value).digest("hex");
+}
+
+export function hmacHexEqual(left: string, right: string): boolean {
+  const a = Buffer.from(left, "hex");
+  const b = Buffer.from(right, "hex");
+  if (a.byteLength !== b.byteLength) {
+    return false;
+  }
+  return timingSafeEqual(a, b);
 }
 
 export type CipherRecord = {

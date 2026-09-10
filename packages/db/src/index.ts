@@ -59,4 +59,5 @@ export function appDatabaseUrl(adminUrl: string): string {
   return url.toString();
 }
 
+export { insertMediaAsset } from "./media-store.js";
 export { createPostgresLinkedInOAuthStore } from "./oauth-store.js";

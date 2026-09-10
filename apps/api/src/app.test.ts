@@ -1,4 +1,7 @@
 import { randomBytes } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { createVault } from "@scriora/crypto";
 import { createMemoryLinkedInOAuthStore } from "@scriora/social";
 import { describe, expect, it } from "vitest";
@@ -61,5 +64,50 @@ describe("api", () => {
     });
     expect(callback.json()).not.toHaveProperty("accessToken");
     await app.close();
+  });
+
+  it("issues a signed upload grant and stores a streamed png", async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "scriora-api-media-"));
+    const png = Buffer.from(
+      "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a49444154789c63000100000500010d0a2db40000000049454e44ae426082",
+      "hex",
+    );
+    try {
+      const app = await buildApi({
+        media: { hmacSecret: "test-hmac", rootDir: dir },
+      });
+      const grant = await app.inject({
+        method: "POST",
+        url: "/media/uploads",
+        payload: {
+          workspaceId: "11111111-1111-4111-8111-111111111111",
+          mime: "image/png",
+        },
+      });
+      expect(grant.statusCode).toBe(200);
+      const url = (grant.json() as { url: string }).url;
+      const put = await app.inject({
+        method: "PUT",
+        url,
+        headers: { "content-type": "image/png" },
+        payload: png,
+      });
+      expect(put.statusCode).toBe(200);
+      expect(put.json()).toMatchObject({
+        mime: "image/png",
+        bytes: png.byteLength,
+        linkedinAssetUrn: null,
+      });
+      const rejected = await app.inject({
+        method: "PUT",
+        url,
+        headers: { "content-type": "image/png" },
+        payload: Buffer.from("<html>"),
+      });
+      expect(rejected.statusCode).toBe(400);
+      await app.close();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });

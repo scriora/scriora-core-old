@@ -35,6 +35,9 @@ importers:
       '@scriora/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@scriora/media':
+        specifier: workspace:*
+        version: link:../../packages/media
       '@scriora/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -216,6 +219,10 @@ importers:
         version: 5.9.3
 
   packages/media:
+    dependencies:
+      '@scriora/crypto':
+        specifier: workspace:*
+        version: link:../crypto
     devDependencies:
       '@types/node':
         specifier: 22.20.2

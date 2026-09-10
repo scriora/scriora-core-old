@@ -1,3 +1,5 @@
+import { mkdirSync } from "node:fs";
+import path from "node:path";
 import { createVault } from "@scriora/crypto";
 import { createPostgresLinkedInOAuthStore } from "@scriora/db";
 import pg from "pg";
@@ -9,29 +11,31 @@ import {
 
 const host = process.env.API_HOST ?? "127.0.0.1";
 const port = Number(process.env.API_PORT ?? "3001");
-
-function vaultFromEnv() {
-  const hex = process.env.VAULT_MASTER_KEY;
-  if (hex?.length !== 64) {
-    return null;
-  }
-  return createVault(new Map([[1, Buffer.from(hex, "hex")]]), 1);
-}
-
-const vault = vaultFromEnv();
+const vaultHex = process.env.VAULT_MASTER_KEY;
 const databaseUrl = process.env.DATABASE_URL;
 const clientId = process.env.LINKEDIN_CLIENT_ID;
 const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
 const redirectUri = process.env.LINKEDIN_REDIRECT_URI;
+const mediaRoot = path.resolve(process.env.MEDIA_ROOT ?? "./data/media");
+
+function vaultFromEnv() {
+  if (vaultHex?.length !== 64) {
+    return null;
+  }
+  return createVault(new Map([[1, Buffer.from(vaultHex, "hex")]]), 1);
+}
+
+const vault = vaultFromEnv();
+const pool = databaseUrl
+  ? new pg.Pool({ connectionString: databaseUrl })
+  : undefined;
 
 const linkedin =
-  vault && databaseUrl && clientId && clientSecret && redirectUri
+  vault && pool && clientId && clientSecret && redirectUri
     ? {
         now: () => new Date(),
         vault,
-        store: createPostgresLinkedInOAuthStore(
-          new pg.Pool({ connectionString: databaseUrl }),
-        ),
+        store: createPostgresLinkedInOAuthStore(pool),
         clientId,
         redirectUri,
         requestedScopes:
@@ -49,5 +53,20 @@ const linkedin =
       }
     : undefined;
 
-const app = await buildApi(linkedin ? { linkedin } : {});
+if (vaultHex) {
+  mkdirSync(mediaRoot, { recursive: true });
+}
+
+const media = vaultHex
+  ? {
+      hmacSecret: vaultHex,
+      rootDir: mediaRoot,
+      ...(pool ? { pool } : {}),
+    }
+  : undefined;
+
+const app = await buildApi({
+  ...(linkedin ? { linkedin } : {}),
+  ...(media ? { media } : {}),
+});
 await app.listen({ host, port });

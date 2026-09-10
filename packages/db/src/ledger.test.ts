@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { appDatabaseUrl, migrate, withWorkspace } from "./index.js";
+import { insertMediaAsset } from "./media-store.js";
 import { createPostgresLinkedInOAuthStore } from "./oauth-store.js";
 
 const adminUrl = process.env.DATABASE_URL ?? "";
@@ -200,6 +201,42 @@ describe.skipIf(!adminUrl)("vault envelopes and unused ledgers", () => {
 
     const asB = await withWorkspace(app, workspaceB, (client) =>
       client.query("select id from social_accounts"),
+    );
+    expect(asB.rows).toEqual([]);
+  });
+
+  it("hides stored media from other tenants", async () => {
+    const owner = randomUUID();
+    const workspaceA = randomUUID();
+    const workspaceB = randomUUID();
+    await app.query(`insert into users (id, email, name) values ($1, $2, $3)`, [
+      owner,
+      `${owner}@media.test`,
+      "Media",
+    ]);
+    await withWorkspace(app, workspaceA, async (client) => {
+      await client.query(
+        `insert into workspaces (id, name, slug, purpose, owner_user_id)
+         values ($1, 'Alpha', $2, 'PERSONAL', $3)`,
+        [workspaceA, `med-a-${workspaceA.slice(0, 8)}`, owner],
+      );
+    });
+    await withWorkspace(app, workspaceB, async (client) => {
+      await client.query(
+        `insert into workspaces (id, name, slug, purpose, owner_user_id)
+         values ($1, 'Beta', $2, 'WORK', $3)`,
+        [workspaceB, `med-b-${workspaceB.slice(0, 8)}`, owner],
+      );
+    });
+    await insertMediaAsset(app, {
+      workspaceId: workspaceA,
+      sha256: "a".repeat(64),
+      mime: "image/png",
+      bytes: 12,
+      storageKey: `${workspaceA}/${"a".repeat(64)}`,
+    });
+    const asB = await withWorkspace(app, workspaceB, (client) =>
+      client.query("select id from media_assets"),
     );
     expect(asB.rows).toEqual([]);
   });
