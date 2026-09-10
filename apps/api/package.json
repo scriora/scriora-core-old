@@ -5,13 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "pnpm exec esbuild src/main.ts --bundle --platform=node --format=esm --outfile=dist/main.js --external:fastify --external:zod --external:pg --external:@scriora/crypto --external:@scriora/db --external:@scriora/media --external:@scriora/social --external:@scriora/shared",
+    "build": "pnpm exec esbuild src/main.ts --bundle --platform=node --format=esm --outfile=dist/main.js --external:fastify --external:zod --external:pg --external:@scriora/analytics --external:@scriora/crypto --external:@scriora/db --external:@scriora/domain --external:@scriora/media --external:@scriora/social --external:@scriora/shared",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "start": "node dist/main.js"
   },
   "dependencies": {
+    "@scriora/analytics": "workspace:*",
     "@scriora/crypto": "workspace:*",
     "@scriora/db": "workspace:*",
+    "@scriora/domain": "workspace:*",
     "@scriora/media": "workspace:*",
     "@scriora/shared": "workspace:*",
     "@scriora/social": "workspace:*",

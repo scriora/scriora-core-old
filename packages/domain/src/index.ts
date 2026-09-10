@@ -26,3 +26,13 @@ export {
   publishAttemptStatuses,
   retryDelayMs,
 } from "./publish.js";
+export {
+  type DescriptiveMetricName,
+  descriptiveMetricNames,
+  dueTelemetrySlots,
+  isTelemetryPollSlot,
+  type MetricObservationStatus,
+  metricObservationStatuses,
+  type TelemetryPollSlot,
+  telemetryPollSlots,
+} from "./telemetry.js";

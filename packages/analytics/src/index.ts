@@ -1,9 +1,14 @@
-export type MetricSource = "platform" | "invented";
-
-export function assertHonestMetric(source: MetricSource): void {
-  if (source === "invented") {
-    throw new Error(
-      "Analytics must come from platform data, never invented lift",
-    );
-  }
-}
+export { collectDescriptiveTelemetry } from "./collect.js";
+export { assertHonestMetric, type MetricSource } from "./honesty.js";
+export {
+  createMemoryTelemetryStore,
+  type StoredTelemetrySnapshot,
+  type TelemetryContext,
+  type TelemetryStore,
+} from "./memory-store.js";
+export {
+  type NormalizedMetric,
+  type NormalizedSnapshot,
+  normalizeLinkedInShareStats,
+  type SnapshotDataCapability,
+} from "./normalize.js";

@@ -4,6 +4,7 @@ import { registerHealthRoutes } from "./routes/health.js";
 import { registerLinkedInOAuthRoutes } from "./routes/linkedin-oauth.js";
 import { registerMediaRoutes } from "./routes/media.js";
 import { registerPublicationRoutes } from "./routes/publications.js";
+import { registerTelemetryRoutes } from "./routes/telemetry.js";
 
 export type { ApiDeps } from "./deps.js";
 
@@ -27,6 +28,7 @@ export async function buildApi(deps: ApiDeps = {}) {
   registerLinkedInOAuthRoutes(app, deps);
   registerMediaRoutes(app, deps);
   registerPublicationRoutes(app, deps);
+  registerTelemetryRoutes(app, deps);
 
   return app;
 }

@@ -1,3 +1,4 @@
+export { fetchLinkedInMemberPostAnalytics } from "./analytics-http.js";
 export {
   exchangeLinkedInAuthorizationCode,
   fetchLinkedInMember,

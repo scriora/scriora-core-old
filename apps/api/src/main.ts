@@ -5,6 +5,7 @@ import {
   createPostgresLinkedInOAuthStore,
   createPostgresLinkedInPublishStore,
   createPostgresOutboxStore,
+  createPostgresTelemetryStore,
 } from "@scriora/db";
 import pg from "pg";
 import { buildApi } from "./app.js";
@@ -83,9 +84,14 @@ const media = vaultHex
     }
   : undefined;
 
+const telemetry = pool
+  ? { store: createPostgresTelemetryStore(pool) }
+  : undefined;
+
 const app = await buildApi({
   ...(linkedin ? { linkedin } : {}),
   ...(linkedinPublish ? { linkedinPublish } : {}),
   ...(media ? { media } : {}),
+  ...(telemetry ? { telemetry } : {}),
 });
 await app.listen({ host, port });

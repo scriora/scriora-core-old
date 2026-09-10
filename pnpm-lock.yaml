@@ -29,12 +29,18 @@ importers:
 
   apps/api:
     dependencies:
+      '@scriora/analytics':
+        specifier: workspace:*
+        version: link:../../packages/analytics
       '@scriora/crypto':
         specifier: workspace:*
         version: link:../../packages/crypto
       '@scriora/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@scriora/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@scriora/media':
         specifier: workspace:*
         version: link:../../packages/media
@@ -148,6 +154,10 @@ importers:
         version: 5.9.3
 
   packages/analytics:
+    dependencies:
+      '@scriora/domain':
+        specifier: workspace:*
+        version: link:../domain
     devDependencies:
       '@types/node':
         specifier: 22.20.2
@@ -176,6 +186,12 @@ importers:
 
   packages/db:
     dependencies:
+      '@scriora/analytics':
+        specifier: workspace:*
+        version: link:../analytics
+      '@scriora/domain':
+        specifier: workspace:*
+        version: link:../domain
       pg:
         specifier: 8.16.3
         version: 8.16.3

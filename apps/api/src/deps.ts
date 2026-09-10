@@ -1,3 +1,4 @@
+import type { TelemetryStore } from "@scriora/analytics";
 import type {
   LinkedInDispatchPorts,
   LinkedInOAuthPorts,
@@ -11,5 +12,11 @@ export type ApiDeps = {
     hmacSecret: string;
     rootDir: string;
     pool?: Pool;
+  };
+  telemetry?: {
+    store: TelemetryStore;
+    fetchStats?: (input: {
+      postUrn: string;
+    }) => Promise<{ httpStatus: number; body: unknown }>;
   };
 };

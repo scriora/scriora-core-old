@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createMemoryTelemetryStore } from "@scriora/analytics";
 import { createVault } from "@scriora/crypto";
 import {
   createMemoryLinkedInOAuthStore,
@@ -166,6 +167,64 @@ describe("api", () => {
     });
     expect(second.json()).toMatchObject({ status: "PLATFORM_PENDING" });
     expect(creates).toBe(1);
+    await app.close();
+  });
+
+  it("records permission-limited telemetry without inventing lift", async () => {
+    let fetched = 0;
+    const app = await buildApi({
+      telemetry: {
+        store: createMemoryTelemetryStore([
+          {
+            workspaceId: "11111111-1111-4111-8111-111111111111",
+            idempotencyKey: "pub-1",
+            context: {
+              socialAccountId: "22222222-2222-4222-8222-222222222222",
+              externalPostId: "urn:li:share:1",
+              capAnalytics: false,
+              grantedScopes: ["w_member_social"],
+            },
+          },
+        ]),
+        async fetchStats() {
+          fetched += 1;
+          return { httpStatus: 200, body: { impressions: 99 } };
+        },
+      },
+    });
+    const payload = {
+      workspaceId: "11111111-1111-4111-8111-111111111111",
+      idempotencyKey: "pub-1",
+    };
+    const first = await app.inject({
+      method: "POST",
+      url: "/publications/telemetry/poll",
+      payload,
+    });
+    const second = await app.inject({
+      method: "POST",
+      url: "/publications/telemetry/poll",
+      payload,
+    });
+    const listed = await app.inject({
+      method: "GET",
+      url: "/publications/telemetry?workspaceId=11111111-1111-4111-8111-111111111111&idempotencyKey=pub-1",
+    });
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toMatchObject({
+      dataCapability: "PERMISSION_LIMITED",
+      pollSlot: "manual",
+    });
+    expect(
+      (
+        first.json() as { metrics: Array<{ value: number | null }> }
+      ).metrics.every((row) => row.value === null),
+    ).toBe(true);
+    expect((second.json() as { id: string }).id).toBe(
+      (first.json() as { id: string }).id,
+    );
+    expect(listed.json()).toHaveLength(1);
+    expect(fetched).toBe(0);
     await app.close();
   });
 });
