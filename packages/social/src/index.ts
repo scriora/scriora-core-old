@@ -1,6 +1,7 @@
 export type PublishCommand = {
   workspaceId: string;
   body: string;
+  idempotencyKey: string;
 };
 
 export type PublishResult =
@@ -11,6 +12,47 @@ export type PublishResult =
 export type SocialPlatformAdapter = {
   readonly network: "linkedin";
   publish(command: PublishCommand): Promise<PublishResult>;
+};
+
+export type ProviderFailureClass =
+  | "RETRYABLE"
+  | "PERMANENT"
+  | "UNKNOWN_EXTERNAL_STATE";
+
+export class ProviderError extends Error {
+  override readonly name = "ProviderError";
+
+  constructor(
+    readonly failureClass: ProviderFailureClass,
+    message: string,
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+  }
+}
+
+export function canRetryProviderCreate(
+  failureClass: ProviderFailureClass,
+): boolean {
+  return failureClass === "RETRYABLE";
+}
+
+export type LinkedInCapabilityManifest = {
+  network: "linkedin";
+  oauth: boolean;
+  publish: boolean;
+  comments: boolean;
+  analytics: boolean;
+  inbox: boolean;
+};
+
+export const linkedinCapabilityManifest: LinkedInCapabilityManifest = {
+  network: "linkedin",
+  oauth: false,
+  publish: false,
+  comments: false,
+  analytics: false,
+  inbox: false,
 };
 
 export function httpCreatedIsNotPublished(): false {

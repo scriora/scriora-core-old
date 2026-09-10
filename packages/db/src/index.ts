@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Client, Pool, PoolClient } from "pg";
@@ -9,9 +9,15 @@ const sqlDir = path.join(
   "sql",
 );
 
-export async function migrate(admin: Client | Pool): Promise<void> {
-  const sql = await readFile(path.join(sqlDir, "0001_tenancy.sql"), "utf8");
-  await admin.query(sql);
+export async function migrate(admin: Client | Pool): Promise<string[]> {
+  const files = (await readdir(sqlDir))
+    .filter((name) => name.endsWith(".sql"))
+    .sort();
+  for (const file of files) {
+    const sql = await readFile(path.join(sqlDir, file), "utf8");
+    await admin.query(sql);
+  }
+  return files;
 }
 
 export async function withWorkspace<T>(

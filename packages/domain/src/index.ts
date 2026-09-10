@@ -41,3 +41,41 @@ export function transition(
   }
   return ok(to);
 }
+
+export const publishAttemptStatuses = [
+  "RESERVED",
+  "DISPATCHING",
+  "PLATFORM_PENDING",
+  "SUCCEEDED",
+  "UNKNOWN_EXTERNAL_STATE",
+  "FAILED_PERMANENT",
+] as const;
+export type PublishAttemptStatus = (typeof publishAttemptStatuses)[number];
+
+export type ExistingPublishAttempt = {
+  id: string;
+  fingerprint: string;
+  status: PublishAttemptStatus;
+};
+
+export type IdempotencyDecision =
+  | { kind: "reserve" }
+  | { kind: "replay"; attempt: ExistingPublishAttempt }
+  | { kind: "reconcile_only"; attempt: ExistingPublishAttempt }
+  | { kind: "conflict"; status: 409 };
+
+export function decideIdempotency(
+  existing: ExistingPublishAttempt | null,
+  fingerprint: string,
+): IdempotencyDecision {
+  if (!existing) {
+    return { kind: "reserve" };
+  }
+  if (existing.fingerprint !== fingerprint) {
+    return { kind: "conflict", status: 409 };
+  }
+  if (existing.status === "UNKNOWN_EXTERNAL_STATE") {
+    return { kind: "reconcile_only", attempt: existing };
+  }
+  return { kind: "replay", attempt: existing };
+}

@@ -10,8 +10,8 @@ if (!databaseUrl) {
 const client = new pg.Client({ connectionString: databaseUrl });
 await client.connect();
 try {
-  await migrate(client);
-  console.log("Applied packages/db/sql/0001_tenancy.sql");
+  const files = await migrate(client);
+  console.log(`Applied packages/db/sql/${files.join(", ")}`);
 } finally {
   await client.end();
 }
