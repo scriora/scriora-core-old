@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   createMemoryLinkedInPublishStore,
   type LinkedInPublishPorts,
+  linkedinImageShareBody,
   linkedinPersonUrn,
   linkedinTextShareBody,
   publishLinkedInText,
@@ -46,6 +47,13 @@ describe("linkedin text publish", () => {
         "com.linkedin.ugc.ShareContent"
       ].shareMediaCategory,
     ).toBe("NONE");
+    expect(
+      linkedinImageShareBody(
+        "urn:li:person:abc",
+        "Hello",
+        "urn:li:digitalmediaAsset:x",
+      ).specificContent["com.linkedin.ugc.ShareContent"].shareMediaCategory,
+    ).toBe("IMAGE");
   });
 
   it("keeps 201 as pending when LinkedIn cannot be read back", async () => {
@@ -143,5 +151,24 @@ describe("linkedin text publish", () => {
       text: "A different post",
     });
     expect(changed).toEqual({ ok: false, error: "conflict" });
+  });
+
+  it("passes media asset id on image publish and does not create twice", async () => {
+    const seen: Array<string | undefined> = [];
+    const ports = testPorts({
+      async createShare(input) {
+        seen.push(input.mediaAssetId);
+        return { httpStatus: 201, restliId: "urn:li:share:img" };
+      },
+    });
+    const input = {
+      workspaceId,
+      idempotencyKey: "img-1",
+      text: "With photo",
+      mediaAssetId: "33333333-3333-4333-8333-333333333333",
+    };
+    await publishLinkedInText(ports, input);
+    await publishLinkedInText(ports, input);
+    expect(seen).toEqual(["33333333-3333-4333-8333-333333333333"]);
   });
 });

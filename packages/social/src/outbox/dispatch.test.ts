@@ -8,6 +8,7 @@ import {
 import {
   createMemoryOutboxStore,
   dispatchLinkedInText,
+  enqueueLinkedInText,
   processDueOutbox,
 } from "./dispatch.js";
 
@@ -79,5 +80,20 @@ describe("publish outbox", () => {
     await dispatchLinkedInText(ports, input);
     await processDueOutbox(ports);
     expect(creates.count).toBe(1);
+  });
+
+  it("does not dispatch a future scheduled command until it is due", async () => {
+    const creates = { count: 0 };
+    const ports = testPorts(creates);
+    await enqueueLinkedInText(ports, {
+      workspaceId,
+      idempotencyKey: "later",
+      text: "Later",
+      nextAttemptAt: new Date("2099-01-01T00:00:00.000Z"),
+    });
+    expect(await processDueOutbox(ports)).toBe(0);
+    expect(creates.count).toBe(0);
+    const queued = await ports.outbox.listByState(workspaceId, "PENDING");
+    expect(queued).toHaveLength(1);
   });
 });

@@ -11,6 +11,10 @@ export type GovernanceContent = {
   workspaceId: string;
   status: ContentState;
   body: string;
+  originMode: "CLASSIC";
+  source: "human";
+  scheduledAt: string | null;
+  mediaAssetIds: string[];
 };
 
 export type GovernanceApproval = {
@@ -18,6 +22,8 @@ export type GovernanceApproval = {
   workspaceId: string;
   contentId: string;
   status: ApprovalStatus;
+  decidedBy: string | null;
+  decidedAt: string | null;
 };
 
 export type GovernancePolicy = {
@@ -46,13 +52,21 @@ export function createMemoryGovernanceStore() {
   }
 
   return {
-    async createDraft(input: { workspaceId: string; body: string }) {
+    async createDraft(input: {
+      workspaceId: string;
+      body: string;
+      mediaAssetIds?: string[];
+    }) {
       await ensurePolicy(input.workspaceId);
       const content: GovernanceContent = {
         id: randomUUID(),
         workspaceId: input.workspaceId,
         status: "DRAFT",
         body: input.body,
+        originMode: "CLASSIC",
+        source: "human",
+        scheduledAt: null,
+        mediaAssetIds: input.mediaAssetIds ?? [],
       };
       contents.set(content.id, content);
       return content;
@@ -77,6 +91,8 @@ export function createMemoryGovernanceStore() {
         workspaceId,
         contentId,
         status: "PENDING",
+        decidedBy: null,
+        decidedAt: null,
       };
       approvals.set(approval.id, approval);
       return { ok: true as const, content, approval };
@@ -85,6 +101,7 @@ export function createMemoryGovernanceStore() {
       workspaceId: string;
       approvalId: string;
       decision: "APPROVED" | "REJECTED";
+      actor: string;
     }) {
       const approval = approvals.get(input.approvalId);
       if (!approval || approval.workspaceId !== input.workspaceId) {
@@ -103,7 +120,88 @@ export function createMemoryGovernanceStore() {
       }
       content.status = next.value;
       approval.status = input.decision;
+      approval.decidedBy = input.actor;
+      approval.decidedAt = new Date().toISOString();
       return { ok: true as const, content, approval };
+    },
+    async getPolicy(workspaceId: string) {
+      return ensurePolicy(workspaceId);
+    },
+    async listContents(workspaceId: string) {
+      await ensurePolicy(workspaceId);
+      return [...contents.values()].filter(
+        (row) => row.workspaceId === workspaceId,
+      );
+    },
+    async listPendingApprovals(workspaceId: string) {
+      return [...approvals.values()].filter(
+        (row) => row.workspaceId === workspaceId && row.status === "PENDING",
+      );
+    },
+    async listApprovalHistory(workspaceId: string) {
+      return [...approvals.values()].filter(
+        (row) =>
+          row.workspaceId === workspaceId &&
+          (row.status === "APPROVED" || row.status === "REJECTED"),
+      );
+    },
+    async reschedule(input: {
+      workspaceId: string;
+      contentId: string;
+      scheduledAt: Date;
+    }) {
+      const content = contents.get(input.contentId);
+      if (!content || content.workspaceId !== input.workspaceId) {
+        return { ok: false as const, error: "not_found" };
+      }
+      if (content.status !== "SCHEDULED") {
+        return { ok: false as const, error: "not_scheduled" };
+      }
+      const minute = Math.floor(input.scheduledAt.getTime() / 60_000);
+      for (const row of contents.values()) {
+        if (
+          row.workspaceId === input.workspaceId &&
+          row.id !== input.contentId &&
+          row.scheduledAt &&
+          Math.floor(new Date(row.scheduledAt).getTime() / 60_000) === minute
+        ) {
+          return { ok: false as const, error: "conflict" };
+        }
+      }
+      content.scheduledAt = input.scheduledAt.toISOString();
+      return { ok: true as const, content };
+    },
+    async markScheduled(input: {
+      workspaceId: string;
+      contentId: string;
+      scheduledAt: Date;
+    }) {
+      const content = contents.get(input.contentId);
+      if (!content || content.workspaceId !== input.workspaceId) {
+        return { ok: false as const, error: "not_found" };
+      }
+      const minute = Math.floor(input.scheduledAt.getTime() / 60_000);
+      for (const row of contents.values()) {
+        if (
+          row.workspaceId === input.workspaceId &&
+          row.id !== input.contentId &&
+          row.scheduledAt &&
+          Math.floor(new Date(row.scheduledAt).getTime() / 60_000) === minute
+        ) {
+          return { ok: false as const, error: "conflict" };
+        }
+      }
+      if (content.status === "SCHEDULED") {
+        content.scheduledAt = input.scheduledAt.toISOString();
+        return { ok: true as const, content };
+      }
+      const next = transition(content.status, "SCHEDULED");
+      if (!next.ok) {
+        return { ok: false as const, error: "illegal_transition" };
+      }
+      content.status = next.value;
+      content.scheduledAt = input.scheduledAt.toISOString();
+      return { ok: true as const, content };
     },
     async setDispatchPaused(workspaceId: string, dispatchPaused: boolean) {
       const policy = await ensurePolicy(workspaceId);
@@ -131,6 +229,7 @@ export function createMemoryGovernanceStore() {
       });
       return {
         body: content.body,
+        mediaAssetIds: content.mediaAssetIds,
         gate,
       };
     },

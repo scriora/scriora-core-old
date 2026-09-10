@@ -13,7 +13,7 @@ export type OutboxCommand = {
   workspaceId: string;
   idempotencyKey: string;
   command: string;
-  payload: { text: string };
+  payload: { text: string; mediaAssetId?: string };
   state: "PENDING" | "PROCESSING" | "PUBLISHED" | "FAILED";
   attemptCount: number;
 };
@@ -23,8 +23,14 @@ export type OutboxStore = {
     workspaceId: string;
     idempotencyKey: string;
     text: string;
+    mediaAssetId?: string;
+    nextAttemptAt?: Date;
   }): Promise<void>;
   claimDue(limit: number): Promise<OutboxCommand[]>;
+  listByState(
+    workspaceId: string,
+    state: OutboxCommand["state"],
+  ): Promise<OutboxCommand[]>;
   complete(input: {
     workspaceId: string;
     id: string;
@@ -32,6 +38,11 @@ export type OutboxStore = {
     lastError: string | null;
     nextAttemptAt?: Date;
   }): Promise<void>;
+  reschedule(input: {
+    workspaceId: string;
+    idempotencyKey: string;
+    nextAttemptAt: Date;
+  }): Promise<"ok" | "not_found" | "not_pending">;
 };
 
 export type LinkedInDispatchPorts = LinkedInPublishPorts & {
@@ -51,11 +62,19 @@ export function createMemoryOutboxStore(): OutboxStore {
         workspaceId: input.workspaceId,
         idempotencyKey: input.idempotencyKey,
         command: "linkedin.publish_text",
-        payload: { text: input.text },
+        payload: {
+          text: input.text,
+          ...(input.mediaAssetId ? { mediaAssetId: input.mediaAssetId } : {}),
+        },
         state: "PENDING",
         attemptCount: 0,
-        nextAttemptAt: 0,
+        nextAttemptAt: input.nextAttemptAt?.getTime() ?? 0,
       });
+    },
+    async listByState(workspaceId, state) {
+      return [...rows.values()]
+        .filter((row) => row.workspaceId === workspaceId && row.state === state)
+        .map((row) => ({ ...row }));
     },
     async claimDue(limit) {
       const now = Date.now();
@@ -86,6 +105,18 @@ export function createMemoryOutboxStore(): OutboxStore {
         }
       }
     },
+    async reschedule(input) {
+      const key = `${input.workspaceId}:${input.idempotencyKey}`;
+      const row = rows.get(key);
+      if (!row) {
+        return "not_found";
+      }
+      if (row.state !== "PENDING") {
+        return "not_pending";
+      }
+      row.nextAttemptAt = input.nextAttemptAt.getTime();
+      return "ok";
+    },
   };
 }
 
@@ -95,6 +126,8 @@ export async function enqueueLinkedInText(
     workspaceId: string;
     idempotencyKey: string;
     text: string;
+    mediaAssetId?: string;
+    nextAttemptAt?: Date;
   },
 ): Promise<
   | { ok: true }
@@ -111,6 +144,7 @@ export async function enqueueLinkedInText(
     workspaceId: input.workspaceId,
     memberId: publisher.memberId,
     text: input.text,
+    ...(input.mediaAssetId ? { mediaAssetId: input.mediaAssetId } : {}),
   });
   const existing = await ports.store.getAttempt(
     input.workspaceId,
@@ -147,6 +181,9 @@ export async function processDueOutbox(
       workspaceId: command.workspaceId,
       idempotencyKey: command.idempotencyKey,
       text: command.payload.text,
+      ...(command.payload.mediaAssetId
+        ? { mediaAssetId: command.payload.mediaAssetId }
+        : {}),
     });
     if (!result.ok) {
       await ports.outbox.complete({
@@ -196,6 +233,7 @@ export async function dispatchLinkedInText(
     workspaceId: string;
     idempotencyKey: string;
     text: string;
+    mediaAssetId?: string;
   },
 ): Promise<
   | { ok: true; attempt: PublicPublishAttempt }

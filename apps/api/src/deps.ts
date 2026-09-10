@@ -1,4 +1,5 @@
 import type { TelemetryStore } from "@scriora/analytics";
+import type { WorkspaceStore } from "@scriora/db";
 import type { GovernanceStore } from "@scriora/policies";
 import type {
   LinkedInDispatchPorts,
@@ -7,6 +8,7 @@ import type {
 import type { Pool } from "pg";
 
 export type ApiDeps = {
+  classicAppOrigin?: string;
   linkedin?: LinkedInOAuthPorts;
   linkedinPublish?: LinkedInDispatchPorts;
   media?: {
@@ -23,4 +25,5 @@ export type ApiDeps = {
   governance?: {
     store: GovernanceStore;
   };
+  workspaces?: WorkspaceStore;
 };

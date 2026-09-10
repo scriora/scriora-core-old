@@ -2,18 +2,21 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { createVault } from "@scriora/crypto";
 import {
+  createMemoryWorkspaceStore,
   createPostgresGovernanceStore,
   createPostgresLinkedInOAuthStore,
   createPostgresLinkedInPublishStore,
   createPostgresOutboxStore,
   createPostgresTelemetryStore,
+  createPostgresWorkspaceStore,
 } from "@scriora/db";
+import { createMemoryGovernanceStore } from "@scriora/policies";
 import pg from "pg";
 import { buildApi } from "./app.js";
 import {
-  createLinkedInTextShare,
   exchangeLinkedInAuthorizationCode,
   fetchLinkedInMember,
+  postgresLinkedInShare,
   verifyLinkedInShare,
 } from "./linkedin/http.js";
 
@@ -68,7 +71,7 @@ const linkedinPublish =
         vault,
         store: createPostgresLinkedInPublishStore(pool),
         outbox: createPostgresOutboxStore(pool),
-        createShare: createLinkedInTextShare,
+        createShare: postgresLinkedInShare(pool, mediaRoot),
         verifyShare: verifyLinkedInShare,
       }
     : undefined;
@@ -89,15 +92,23 @@ const telemetry = pool
   ? { store: createPostgresTelemetryStore(pool) }
   : undefined;
 
-const governance = pool
-  ? { store: createPostgresGovernanceStore(pool) }
-  : undefined;
+const governance = {
+  store: pool
+    ? createPostgresGovernanceStore(pool)
+    : createMemoryGovernanceStore(),
+};
+
+const workspaces = pool
+  ? createPostgresWorkspaceStore(pool)
+  : createMemoryWorkspaceStore();
 
 const app = await buildApi({
+  classicAppOrigin: process.env.CLASSIC_APP_ORIGIN ?? "http://127.0.0.1:3000",
   ...(linkedin ? { linkedin } : {}),
   ...(linkedinPublish ? { linkedinPublish } : {}),
   ...(media ? { media } : {}),
   ...(telemetry ? { telemetry } : {}),
   ...(governance ? { governance } : {}),
+  workspaces,
 });
 await app.listen({ host, port });

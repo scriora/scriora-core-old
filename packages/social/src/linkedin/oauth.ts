@@ -76,7 +76,43 @@ export type LinkedInOAuthStore = {
     account: PublicLinkedInAccount;
     tokenEnvelope: CipherRecord;
   }): Promise<void>;
+  getConnectedAccount(
+    workspaceId: string,
+  ): Promise<PublicLinkedInAccount | null>;
 };
+
+export type LinkedInConnectionStatus = {
+  connected: boolean;
+  memberUrn: string | null;
+  displayName: string | null;
+  tokenExpiresAt: string | null;
+  needsReauth: boolean;
+};
+
+export function linkedInConnectionStatus(
+  account: PublicLinkedInAccount | null,
+  now: Date,
+): LinkedInConnectionStatus {
+  if (!account) {
+    return {
+      connected: false,
+      memberUrn: null,
+      displayName: null,
+      tokenExpiresAt: null,
+      needsReauth: true,
+    };
+  }
+  const expired =
+    account.tokenExpiresAt !== null &&
+    account.tokenExpiresAt.getTime() <= now.getTime();
+  return {
+    connected: true,
+    memberUrn: account.externalAccountId,
+    displayName: account.displayName,
+    tokenExpiresAt: account.tokenExpiresAt?.toISOString() ?? null,
+    needsReauth: expired || account.refreshMode === "reauthorize",
+  };
+}
 
 export type LinkedInOAuthPorts = {
   now(): Date;
@@ -94,6 +130,7 @@ export type LinkedInOAuthPorts = {
 
 export function createMemoryLinkedInOAuthStore(): LinkedInOAuthStore {
   const pending = new Map<string, OAuthPendingRecord>();
+  const accounts = new Map<string, PublicLinkedInAccount>();
   return {
     async savePending(record) {
       pending.set(`${record.workspaceId}:${record.stateHash}`, record);
@@ -107,8 +144,11 @@ export function createMemoryLinkedInOAuthStore(): LinkedInOAuthStore {
       pending.delete(key);
       return record;
     },
-    async saveConnectedAccount() {
-      /* tokens stay in the vault caller; persistence is the postgres store */
+    async saveConnectedAccount(input) {
+      accounts.set(input.workspaceId, input.account);
+    },
+    async getConnectedAccount(workspaceId) {
+      return accounts.get(workspaceId) ?? null;
     },
   };
 }

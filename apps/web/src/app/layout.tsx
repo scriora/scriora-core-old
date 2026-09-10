@@ -31,9 +31,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html
       lang={defaultLocale}
       dir={direction(defaultLocale)}
-      className={`${display.variable} ${body.variable}`}
+      suppressHydrationWarning
     >
-      <body>{children}</body>
+      <body className={`${display.variable} ${body.variable}`}>{children}</body>
     </html>
   );
 }

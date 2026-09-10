@@ -6,7 +6,7 @@ export type OutboxCommandRow = {
   workspaceId: string;
   idempotencyKey: string;
   command: string;
-  payload: { text: string };
+  payload: { text: string; mediaAssetId?: string };
   state: "PENDING" | "PROCESSING" | "PUBLISHED" | "FAILED";
   attemptCount: number;
 };
@@ -17,17 +17,25 @@ export function createPostgresOutboxStore(pool: Pool) {
       workspaceId: string;
       idempotencyKey: string;
       text: string;
+      mediaAssetId?: string;
+      nextAttemptAt?: Date;
     }) {
       await withWorkspace(pool, input.workspaceId, async (client) => {
         await client.query(
           `insert into outbox_commands (
-             workspace_id, idempotency_key, command, payload, state
-           ) values ($1, $2, 'linkedin.publish_text', $3::jsonb, 'PENDING')
+             workspace_id, idempotency_key, command, payload, state, next_attempt_at
+           ) values ($1, $2, 'linkedin.publish_text', $3::jsonb, 'PENDING', coalesce($4, now()))
            on conflict (workspace_id, idempotency_key) do nothing`,
           [
             input.workspaceId,
             input.idempotencyKey,
-            JSON.stringify({ text: input.text }),
+            JSON.stringify({
+              text: input.text,
+              ...(input.mediaAssetId
+                ? { mediaAssetId: input.mediaAssetId }
+                : {}),
+            }),
+            input.nextAttemptAt ?? null,
           ],
         );
       });
@@ -47,6 +55,29 @@ export function createPostgresOutboxStore(pool: Pool) {
               : row.payload,
         }),
       );
+    },
+    async listByState(
+      workspaceId: string,
+      state: OutboxCommandRow["state"],
+    ): Promise<OutboxCommandRow[]> {
+      return withWorkspace(pool, workspaceId, async (client) => {
+        const result = await client.query(
+          `select id, workspace_id, idempotency_key, command, payload, state, attempt_count
+           from outbox_commands
+           where state = $1
+           order by updated_at desc`,
+          [state],
+        );
+        return result.rows.map((row) =>
+          mapRow({
+            ...row,
+            payload:
+              typeof row.payload === "string"
+                ? JSON.parse(row.payload)
+                : row.payload,
+          }),
+        );
+      });
     },
     async complete(input: {
       workspaceId: string;
@@ -68,6 +99,34 @@ export function createPostgresOutboxStore(pool: Pool) {
         );
       });
     },
+    async reschedule(input: {
+      workspaceId: string;
+      idempotencyKey: string;
+      nextAttemptAt: Date;
+    }) {
+      return withWorkspace(pool, input.workspaceId, async (client) => {
+        const found = await client.query(
+          `select state from outbox_commands where idempotency_key = $1`,
+          [input.idempotencyKey],
+        );
+        const row = found.rows[0] as
+          | { state: OutboxCommandRow["state"] }
+          | undefined;
+        if (!row) {
+          return "not_found" as const;
+        }
+        if (row.state !== "PENDING") {
+          return "not_pending" as const;
+        }
+        await client.query(
+          `update outbox_commands
+           set next_attempt_at = $2, updated_at = now()
+           where idempotency_key = $1 and state = 'PENDING'`,
+          [input.idempotencyKey, input.nextAttemptAt],
+        );
+        return "ok" as const;
+      });
+    },
   };
 }
 
@@ -76,7 +135,7 @@ function mapRow(row: {
   workspace_id: string;
   idempotency_key: string;
   command: string;
-  payload: { text: string };
+  payload: { text: string; mediaAssetId?: string };
   state: OutboxCommandRow["state"];
   attempt_count: number;
 }): OutboxCommandRow {

@@ -32,6 +32,9 @@ export function registerPublicationRoutes(app: FastifyInstance, deps: ApiDeps) {
       workspaceId: body.workspaceId,
       idempotencyKey: body.idempotencyKey,
       text: prepared.body,
+      ...(prepared.mediaAssetIds[0]
+        ? { mediaAssetId: prepared.mediaAssetIds[0] }
+        : {}),
     });
     if (!result.ok) {
       const status =

@@ -1,0 +1,2 @@
+-- PENDING schedules collide on the same UTC minute in the governance store.
+-- A unique index on date_trunc(timestamptz) is not IMMUTABLE in Postgres.

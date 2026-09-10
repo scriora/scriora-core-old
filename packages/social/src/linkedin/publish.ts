@@ -50,6 +50,9 @@ export type LinkedInPublishPorts = {
     accessToken: string;
     authorUrn: string;
     text: string;
+    workspaceId?: string;
+    mediaAssetId?: string;
+    imageAssetUrn?: string | null;
   }): Promise<LinkedInShareCall>;
   verifyShare(input: {
     accessToken: string;
@@ -86,12 +89,41 @@ export function linkedinTextShareBody(authorUrn: string, text: string) {
   };
 }
 
+export function linkedinImageShareBody(
+  authorUrn: string,
+  text: string,
+  assetUrn: string,
+) {
+  return {
+    author: authorUrn,
+    lifecycleState: "PUBLISHED",
+    specificContent: {
+      "com.linkedin.ugc.ShareContent": {
+        shareCommentary: { text },
+        shareMediaCategory: "IMAGE",
+        media: [
+          {
+            status: "READY",
+            media: assetUrn,
+          },
+        ],
+      },
+    },
+    visibility: {
+      "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
+    },
+  };
+}
+
 export function publicationFingerprint(input: {
   workspaceId: string;
   memberId: string;
   text: string;
+  mediaAssetId?: string;
 }): string {
-  return sha256Hex(`${input.workspaceId}|${input.memberId}|${input.text}`);
+  return sha256Hex(
+    `${input.workspaceId}|${input.memberId}|${input.text}|${input.mediaAssetId ?? ""}`,
+  );
 }
 
 export function createMemoryLinkedInPublishStore(
@@ -170,12 +202,20 @@ async function dispatchShare(
   publisher: LinkedInPublisher,
   attempt: StoredPublishAttempt,
   text: string,
+  image?: { mediaAssetId?: string; imageAssetUrn?: string | null },
 ): Promise<StoredPublishAttempt> {
   const accessToken = readAccessToken(ports, publisher.tokenEnvelope);
   const authorUrn = linkedinPersonUrn(publisher.memberId);
   let created: LinkedInShareCall;
   try {
-    created = await ports.createShare({ accessToken, authorUrn, text });
+    created = await ports.createShare({
+      accessToken,
+      authorUrn,
+      text,
+      workspaceId: publisher.workspaceId,
+      ...(image?.mediaAssetId ? { mediaAssetId: image.mediaAssetId } : {}),
+      ...(image?.imageAssetUrn ? { imageAssetUrn: image.imageAssetUrn } : {}),
+    });
   } catch {
     const unknown: StoredPublishAttempt = {
       ...attempt,
@@ -250,6 +290,7 @@ export async function publishLinkedInText(
     workspaceId: string;
     idempotencyKey: string;
     text: string;
+    mediaAssetId?: string;
   },
 ): Promise<
   | { ok: true; attempt: PublicPublishAttempt }
@@ -269,6 +310,7 @@ export async function publishLinkedInText(
     workspaceId: input.workspaceId,
     memberId: publisher.memberId,
     text: input.text,
+    ...(input.mediaAssetId ? { mediaAssetId: input.mediaAssetId } : {}),
   });
   const existing = await ports.store.getAttempt(
     input.workspaceId,
@@ -311,6 +353,14 @@ export async function publishLinkedInText(
           confirmedAt: null,
         };
   await ports.store.saveAttempt(attempt);
-  const dispatched = await dispatchShare(ports, publisher, attempt, input.text);
+  const dispatched = await dispatchShare(
+    ports,
+    publisher,
+    attempt,
+    input.text,
+    {
+      ...(input.mediaAssetId ? { mediaAssetId: input.mediaAssetId } : {}),
+    },
+  );
   return { ok: true, attempt: toPublic(dispatched) };
 }

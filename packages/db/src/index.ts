@@ -21,9 +21,19 @@ export async function migrate(admin: Client | Pool): Promise<string[]> {
 }
 
 export { createPostgresGovernanceStore } from "./stores/governance-store.js";
-export { insertMediaAsset } from "./stores/media-store.js";
+export {
+  getMediaAsset,
+  insertMediaAsset,
+  listMediaAssets,
+  setMediaLinkedInAssetUrn,
+} from "./stores/media-store.js";
 export { createPostgresLinkedInOAuthStore } from "./stores/oauth-store.js";
 export { createPostgresOutboxStore } from "./stores/outbox-store.js";
 export { createPostgresLinkedInPublishStore } from "./stores/publish-store.js";
 export { createPostgresTelemetryStore } from "./stores/telemetry-store.js";
+export {
+  createMemoryWorkspaceStore,
+  createPostgresWorkspaceStore,
+  type WorkspaceStore,
+} from "./stores/workspace-store.js";
 export { appDatabaseUrl, withWorkspace } from "./tenancy.js";

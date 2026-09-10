@@ -137,5 +137,40 @@ export function createPostgresLinkedInOAuthStore(pool: Pool) {
         );
       });
     },
+    async getConnectedAccount(workspaceId: string) {
+      return withWorkspace(pool, workspaceId, async (client) => {
+        const result = await client.query(
+          `select external_account_id, display_name, granted_scopes,
+                  token_expires_at, refresh_mode, cap_oauth, cap_publish,
+                  cap_comments, cap_analytics, cap_inbox
+           from social_accounts
+           where platform = 'linkedin'
+           order by updated_at desc
+           limit 1`,
+        );
+        const row = result.rows[0];
+        if (!row) {
+          return null;
+        }
+        return {
+          platform: "linkedin" as const,
+          externalAccountId: row.external_account_id as string,
+          displayName: row.display_name as string,
+          grantedScopes: row.granted_scopes as string[],
+          capabilities: {
+            network: "linkedin" as const,
+            oauth: Boolean(row.cap_oauth),
+            publish: Boolean(row.cap_publish),
+            comments: Boolean(row.cap_comments),
+            analytics: Boolean(row.cap_analytics),
+            inbox: Boolean(row.cap_inbox),
+          },
+          refreshMode: row.refresh_mode as "refresh" | "reauthorize",
+          tokenExpiresAt: row.token_expires_at
+            ? new Date(row.token_expires_at as string)
+            : null,
+        };
+      });
+    },
   };
 }

@@ -1,5 +1,5 @@
 import { Readable } from "node:stream";
-import { insertMediaAsset } from "@scriora/db";
+import { insertMediaAsset, listMediaAssets } from "@scriora/db";
 import {
   createMediaUploadGrant,
   maxBytesForMime,
@@ -25,6 +25,19 @@ const mediaPutQuery = z.object({
 });
 
 export function registerMediaRoutes(app: FastifyInstance, deps: ApiDeps) {
+  app.get("/media", async (request, reply) => {
+    if (!deps.media) {
+      return reply.code(503).send({ error: "media_unconfigured" });
+    }
+    const query = z
+      .object({ workspaceId: z.string().uuid() })
+      .parse(request.query);
+    if (!deps.media.pool) {
+      return [];
+    }
+    return listMediaAssets(deps.media.pool, query.workspaceId);
+  });
+
   app.post("/media/uploads", async (request, reply) => {
     if (!deps.media) {
       return reply.code(503).send({ error: "media_unconfigured" });
@@ -90,16 +103,19 @@ export function registerMediaRoutes(app: FastifyInstance, deps: ApiDeps) {
       }
       throw error;
     }
+    let mediaId: string | null = null;
     if (deps.media.pool) {
-      await insertMediaAsset(deps.media.pool, {
+      const inserted = await insertMediaAsset(deps.media.pool, {
         workspaceId: query.workspaceId,
         sha256: stored.sha256,
         mime: stored.mime,
         bytes: stored.bytes,
         storageKey: stored.storageKey,
       });
+      mediaId = inserted.id;
     }
     return {
+      id: mediaId,
       sha256: stored.sha256,
       bytes: stored.bytes,
       mime: stored.mime,

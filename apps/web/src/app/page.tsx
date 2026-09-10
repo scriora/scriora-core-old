@@ -52,6 +52,12 @@ export default function HomePage() {
           </p>
           <a
             className="inline-flex min-h-11 items-center border border-gold px-5 text-sm text-gold no-underline"
+            href="/classic"
+          >
+            {copy.classicOpen}
+          </a>
+          <a
+            className="inline-flex min-h-11 items-center border border-gold px-5 text-sm text-gold no-underline"
             href="https://github.com/scriora/scriora-core"
           >
             {copy.source}
