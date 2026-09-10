@@ -156,6 +156,36 @@ export function finalizePublishStatus(input: {
   };
 }
 
+export const outboxRetryCapsMs = [30_000, 120_000, 480_000] as const;
+export const maxOutboxAttempts = 3;
+
+export function retryDelayMs(
+  attemptNumber: number,
+  random: () => number = Math.random,
+): number {
+  const index =
+    Math.min(Math.max(attemptNumber, 1), outboxRetryCapsMs.length) - 1;
+  const cap = outboxRetryCapsMs[index] ?? outboxRetryCapsMs[0];
+  return Math.floor(random() * cap);
+}
+
+export function outboxFollowUp(
+  attemptStatus: PublishAttemptStatus,
+  attemptCount: number,
+): "delivered" | "dead" | "retry" {
+  if (attemptStatus === "SUCCEEDED" || attemptStatus === "PLATFORM_PENDING") {
+    return "delivered";
+  }
+  if (
+    attemptStatus === "FAILED_PERMANENT" ||
+    attemptStatus === "UNKNOWN_EXTERNAL_STATE" ||
+    attemptCount >= maxOutboxAttempts
+  ) {
+    return "dead";
+  }
+  return "retry";
+}
+
 export const oauthStateTtlMs = 10 * 60 * 1000;
 
 export type OAuthPendingDecision = "ok" | "expired" | "reused";

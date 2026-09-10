@@ -1,0 +1,83 @@
+import { randomBytes } from "node:crypto";
+import { createVault } from "@scriora/crypto";
+import { describe, expect, it } from "vitest";
+import {
+  createMemoryOutboxStore,
+  dispatchLinkedInText,
+  processDueOutbox,
+} from "./outbox.js";
+import {
+  createMemoryLinkedInPublishStore,
+  type LinkedInPublishPorts,
+} from "./publish.js";
+
+const workspaceId = "11111111-1111-4111-8111-111111111111";
+
+function testPorts(creates: { count: number }) {
+  const vault = createVault(new Map([[1, randomBytes(32)]]), 1);
+  const ports: LinkedInPublishPorts & {
+    outbox: ReturnType<typeof createMemoryOutboxStore>;
+  } = {
+    now: () => new Date("2026-09-10T12:00:00.000Z"),
+    vault,
+    store: createMemoryLinkedInPublishStore([
+      {
+        workspaceId,
+        memberId: "urn:li:person:abc",
+        canPublish: true,
+        tokenEnvelope: vault.encrypt(
+          new TextEncoder().encode(JSON.stringify({ accessToken: "access" })),
+        ),
+      },
+    ]),
+    outbox: createMemoryOutboxStore(),
+    async createShare() {
+      creates.count += 1;
+      return { httpStatus: 201, restliId: "urn:li:share:1" };
+    },
+    async verifyShare() {
+      return 403;
+    },
+  };
+  return ports;
+}
+
+describe("publish outbox", () => {
+  it("dispatches a reserved command once through the worker", async () => {
+    const creates = { count: 0 };
+    const ports = testPorts(creates);
+    const input = {
+      workspaceId,
+      idempotencyKey: "pub-1",
+      text: "Hello professionals",
+    };
+    const first = await dispatchLinkedInText(ports, input);
+    const second = await dispatchLinkedInText(ports, input);
+    expect(creates.count).toBe(1);
+    expect(first).toMatchObject({
+      ok: true,
+      attempt: { status: "PLATFORM_PENDING" },
+    });
+    expect(second).toMatchObject({
+      ok: true,
+      attempt: { status: "PLATFORM_PENDING" },
+    });
+  });
+
+  it("moves unknown outcomes to the dead-letter outbox without a second create", async () => {
+    const creates = { count: 0 };
+    const ports = testPorts(creates);
+    ports.createShare = async () => {
+      creates.count += 1;
+      return { httpStatus: 201, restliId: null };
+    };
+    const input = {
+      workspaceId,
+      idempotencyKey: "pub-1",
+      text: "Hello professionals",
+    };
+    await dispatchLinkedInText(ports, input);
+    await processDueOutbox(ports);
+    expect(creates.count).toBe(1);
+  });
+});

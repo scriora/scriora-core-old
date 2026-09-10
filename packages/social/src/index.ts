@@ -42,4 +42,5 @@ export function httpCreatedIsNotPublished(): false {
 }
 
 export * from "./oauth.js";
+export * from "./outbox.js";
 export * from "./publish.js";

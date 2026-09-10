@@ -6,6 +6,7 @@ import { createVault } from "@scriora/crypto";
 import {
   createMemoryLinkedInOAuthStore,
   createMemoryLinkedInPublishStore,
+  createMemoryOutboxStore,
 } from "@scriora/social";
 import { describe, expect, it } from "vitest";
 import { buildApi } from "./app.js";
@@ -133,6 +134,7 @@ describe("api", () => {
             ),
           },
         ]),
+        outbox: createMemoryOutboxStore(),
         async createShare() {
           creates += 1;
           return { httpStatus: 201, restliId: "urn:li:share:1" };

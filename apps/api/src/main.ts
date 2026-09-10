@@ -4,6 +4,7 @@ import { createVault } from "@scriora/crypto";
 import {
   createPostgresLinkedInOAuthStore,
   createPostgresLinkedInPublishStore,
+  createPostgresOutboxStore,
 } from "@scriora/db";
 import pg from "pg";
 import { buildApi } from "./app.js";
@@ -64,6 +65,7 @@ const linkedinPublish =
         now: () => new Date(),
         vault,
         store: createPostgresLinkedInPublishStore(pool),
+        outbox: createPostgresOutboxStore(pool),
         createShare: createLinkedInTextShare,
         verifyShare: verifyLinkedInShare,
       }

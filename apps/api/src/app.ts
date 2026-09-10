@@ -7,10 +7,10 @@ import {
   verifyMediaUploadGrant,
 } from "@scriora/media";
 import {
+  dispatchLinkedInText,
   finishLinkedInConnect,
+  type LinkedInDispatchPorts,
   type LinkedInOAuthPorts,
-  type LinkedInPublishPorts,
-  publishLinkedInText,
   startLinkedInConnect,
 } from "@scriora/social";
 import Fastify from "fastify";
@@ -58,7 +58,7 @@ const mediaPutQuery = z.object({
 
 export type ApiDeps = {
   linkedin?: LinkedInOAuthPorts;
-  linkedinPublish?: LinkedInPublishPorts;
+  linkedinPublish?: LinkedInDispatchPorts;
   media?: {
     hmacSecret: string;
     rootDir: string;
@@ -199,7 +199,7 @@ export async function buildApi(deps: ApiDeps = {}) {
       return reply.code(503).send({ error: "linkedin_publish_unconfigured" });
     }
     const body = publishBody.parse(request.body);
-    const result = await publishLinkedInText(deps.linkedinPublish, body);
+    const result = await dispatchLinkedInText(deps.linkedinPublish, body);
     if (!result.ok) {
       const status =
         result.error === "conflict"

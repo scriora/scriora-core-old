@@ -106,13 +106,28 @@ importers:
 
   apps/worker:
     dependencies:
+      '@scriora/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
+      '@scriora/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@scriora/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@scriora/social':
+        specifier: workspace:*
+        version: link:../../packages/social
+      pg:
+        specifier: 8.16.3
+        version: 8.16.3
     devDependencies:
       '@types/node':
         specifier: 22.20.2
         version: 22.20.2
+      '@types/pg':
+        specifier: 8.15.5
+        version: 8.15.5
       esbuild:
         specifier: 0.28.2
         version: 0.28.2
