@@ -1,5 +1,5 @@
 import type { CipherRecord, Vault } from "@scriora/crypto";
-import { pkceChallengeS256, randomToken, sha256Hex } from "@scriora/crypto";
+import { randomToken, sha256Hex } from "@scriora/crypto";
 import { inspectOAuthPending, oauthStateTtlMs } from "@scriora/domain";
 
 export type LinkedInCapabilityManifest = {
@@ -87,7 +87,6 @@ export type LinkedInOAuthPorts = {
   requestedScopes: string;
   exchangeAuthorizationCode(input: {
     code: string;
-    codeVerifier: string;
     redirectUri: string;
   }): Promise<LinkedInTokenGrant>;
   fetchMember(accessToken: string): Promise<{ id: string; name: string }>;
@@ -134,7 +133,6 @@ export function createLinkedInAuthorizationUrl(input: {
   redirectUri: string;
   state: string;
   scopes: string;
-  codeChallenge: string;
 }): string {
   const url = new URL("https://www.linkedin.com/oauth/v2/authorization");
   url.searchParams.set("response_type", "code");
@@ -142,8 +140,6 @@ export function createLinkedInAuthorizationUrl(input: {
   url.searchParams.set("redirect_uri", input.redirectUri);
   url.searchParams.set("state", input.state);
   url.searchParams.set("scope", input.scopes);
-  url.searchParams.set("code_challenge", input.codeChallenge);
-  url.searchParams.set("code_challenge_method", "S256");
   return url.toString();
 }
 
@@ -152,9 +148,8 @@ export async function startLinkedInConnect(
   workspaceId: string,
 ): Promise<{ authorizationUrl: string }> {
   const state = `${workspaceId}.${randomToken()}`;
-  const verifier = randomToken();
   const now = ports.now();
-  const envelope = ports.vault.encrypt(new TextEncoder().encode(verifier));
+  const envelope = ports.vault.encrypt(new TextEncoder().encode(state));
   await ports.store.savePending({
     workspaceId,
     stateHash: sha256Hex(state),
@@ -169,7 +164,6 @@ export async function startLinkedInConnect(
       redirectUri: ports.redirectUri,
       state,
       scopes: ports.requestedScopes,
-      codeChallenge: pkceChallengeS256(verifier),
     }),
   };
 }
@@ -200,12 +194,8 @@ export async function finishLinkedInConnect(
   if (decision !== "ok") {
     return { ok: false, error: decision };
   }
-  const verifier = new TextDecoder().decode(
-    ports.vault.decrypt(pending.envelope),
-  );
   const grant = await ports.exchangeAuthorizationCode({
     code: input.code,
-    codeVerifier: verifier,
     redirectUri: pending.redirectUri,
   });
   const member = await ports.fetchMember(grant.accessToken);

@@ -2,7 +2,6 @@ import { type LinkedInTokenGrant, splitLinkedInScopes } from "@scriora/social";
 
 export async function exchangeLinkedInAuthorizationCode(input: {
   code: string;
-  codeVerifier: string;
   redirectUri: string;
   clientId: string;
   clientSecret: string;
@@ -13,7 +12,6 @@ export async function exchangeLinkedInAuthorizationCode(input: {
     redirect_uri: input.redirectUri,
     client_id: input.clientId,
     client_secret: input.clientSecret,
-    code_verifier: input.codeVerifier,
   });
   const response = await fetch(
     "https://www.linkedin.com/oauth/v2/accessToken",
@@ -24,7 +22,20 @@ export async function exchangeLinkedInAuthorizationCode(input: {
     },
   );
   if (!response.ok) {
-    throw new Error("linkedin token exchange failed");
+    const text = (await response.text()).slice(0, 400);
+    let detail = `http ${response.status}`;
+    try {
+      const parsed = JSON.parse(text) as {
+        error?: string;
+        error_description?: string;
+      };
+      detail = [parsed.error, parsed.error_description]
+        .filter(Boolean)
+        .join(": ");
+    } catch {
+      /* LinkedIn sometimes returns non-JSON */
+    }
+    throw new Error(`linkedin token exchange failed (${detail})`);
   }
   const json = (await response.json()) as {
     access_token: string;

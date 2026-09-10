@@ -71,7 +71,7 @@ describe("linkedin oauth", () => {
     });
   });
 
-  it("starts connect with hashed PKCE and finishes without returning tokens", async () => {
+  it("starts connect without PKCE for a confidential LinkedIn app", async () => {
     const ports = testPorts();
     const started = await startLinkedInConnect(
       ports,
@@ -81,7 +81,8 @@ describe("linkedin oauth", () => {
     expect(url.origin + url.pathname).toBe(
       "https://www.linkedin.com/oauth/v2/authorization",
     );
-    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(url.searchParams.get("code_challenge")).toBeNull();
+    expect(url.searchParams.get("code_challenge_method")).toBeNull();
     const state = url.searchParams.get("state");
     expect(state).toBeTruthy();
 

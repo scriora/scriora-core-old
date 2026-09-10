@@ -38,7 +38,6 @@ const linkedin =
           process.env.LINKEDIN_SCOPES ?? "openid profile w_member_social",
         exchangeAuthorizationCode: (input: {
           code: string;
-          codeVerifier: string;
           redirectUri: string;
         }) =>
           exchangeLinkedInAuthorizationCode({
