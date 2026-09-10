@@ -1,0 +1,20 @@
+<type>(<scope>): <summary>
+
+# type — pick one that matches this diff:
+#   feat     new user-facing capability
+#   fix      bug that already shipped or blocked a gate
+#   docs     documentation only
+#   brand    identity, marks, mascot assets
+#   chore    toolchain, deps, ignore files, scaffolding
+#   test     tests only
+#   refactor same behavior, clearer structure
+#   ci       workflows and required checks
+#
+# scope — the smallest area the diff actually touches:
+#   web | api | worker | domain | repo | brand
+#
+# summary — imperative, ~72 characters, the why not a file list.
+# Do not put product-roadmap phase numbers in the subject.
+# Delete every comment line above before committing.
+#
+# Optional body after a blank line: why this exists, what it must not do.

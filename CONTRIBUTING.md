@@ -30,6 +30,20 @@ Sign the [CLA](CLA.md) once (org members are already covered). License: [Apache-
 2. Touching publish, OAuth, RLS, or pricing? Open an **issue** first.
 3. Analytics must come from real platform data, never invented lift.
 
+## Commit messages
+
+Use [`.github/commit-template.txt`](.github/commit-template.txt). The **type** and **scope** change with the diff; the shape does not.
+
+Examples:
+
+- `feat(domain): reject draft-to-published without approval`
+- `brand(web): use the head mark without a nested app-icon plate`
+- `chore(repo): ignore Next.js generated agent stubs`
+- `docs(ux): point mascot paths at brand/`
+
+One concern per commit. Do not mix formatter noise with publish, RLS, or brand assets.
+Do not put product-roadmap phase numbers in the subject.
+
 ## Sending a pull request
 
 1. Fork, branch from `main`, one concern per PR.
