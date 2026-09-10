@@ -2,14 +2,14 @@ import { randomBytes } from "node:crypto";
 import { createVault } from "@scriora/crypto";
 import { describe, expect, it } from "vitest";
 import {
+  createMemoryLinkedInPublishStore,
+  type LinkedInPublishPorts,
+} from "../linkedin/publish.js";
+import {
   createMemoryOutboxStore,
   dispatchLinkedInText,
   processDueOutbox,
-} from "./outbox.js";
-import {
-  createMemoryLinkedInPublishStore,
-  type LinkedInPublishPorts,
-} from "./publish.js";
+} from "./dispatch.js";
 
 const workspaceId = "11111111-1111-4111-8111-111111111111";
 

@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { appDatabaseUrl, migrate, withWorkspace } from "./index.js";
-import { insertMediaAsset } from "./media-store.js";
-import { createPostgresLinkedInOAuthStore } from "./oauth-store.js";
+import { insertMediaAsset } from "./stores/media-store.js";
+import { createPostgresLinkedInOAuthStore } from "./stores/oauth-store.js";
 
 const adminUrl = process.env.DATABASE_URL ?? "";
 

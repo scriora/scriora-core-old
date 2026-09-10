@@ -8,7 +8,7 @@ import {
   httpCreatedIsNotPublished,
   linkedinCapabilityManifest,
   ProviderError,
-} from "./index.js";
+} from "../index.js";
 import {
   createMemoryLinkedInOAuthStore,
   finishLinkedInConnect,

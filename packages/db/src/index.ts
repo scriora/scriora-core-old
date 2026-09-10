@@ -1,7 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Client, Pool, PoolClient } from "pg";
+import type { Client, Pool } from "pg";
 
 const sqlDir = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -20,46 +20,8 @@ export async function migrate(admin: Client | Pool): Promise<string[]> {
   return files;
 }
 
-export async function withWorkspace<T>(
-  pool: Pool,
-  workspaceId: string,
-  fn: (client: PoolClient) => Promise<T>,
-): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    await client.query("select set_config($1, $2, true)", [
-      "app.current_workspace_id",
-      workspaceId,
-    ]);
-    const result = await fn(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    try {
-      await client.query("rollback");
-    } catch {
-      /* connection may already be aborted */
-    }
-    throw error;
-  } finally {
-    try {
-      await client.query("reset all");
-    } catch {
-      /* ignore */
-    }
-    client.release();
-  }
-}
-
-export function appDatabaseUrl(adminUrl: string): string {
-  const url = new URL(adminUrl);
-  url.username = "scriora_app";
-  url.password = "scriora_app";
-  return url.toString();
-}
-
-export { insertMediaAsset } from "./media-store.js";
-export { createPostgresLinkedInOAuthStore } from "./oauth-store.js";
-export { createPostgresOutboxStore } from "./outbox-store.js";
-export { createPostgresLinkedInPublishStore } from "./publish-store.js";
+export { insertMediaAsset } from "./stores/media-store.js";
+export { createPostgresLinkedInOAuthStore } from "./stores/oauth-store.js";
+export { createPostgresOutboxStore } from "./stores/outbox-store.js";
+export { createPostgresLinkedInPublishStore } from "./stores/publish-store.js";
+export { appDatabaseUrl, withWorkspace } from "./tenancy.js";

@@ -6,7 +6,7 @@ import {
   publicationFingerprint,
   publishLinkedInText,
   type StoredPublishAttempt,
-} from "./publish.js";
+} from "../linkedin/publish.js";
 
 export type OutboxCommand = {
   id: string;

@@ -41,6 +41,6 @@ export function httpCreatedIsNotPublished(): false {
   return false;
 }
 
-export * from "./oauth.js";
-export * from "./outbox.js";
-export * from "./publish.js";
+export * from "./linkedin/oauth.js";
+export * from "./linkedin/publish.js";
+export * from "./outbox/dispatch.js";

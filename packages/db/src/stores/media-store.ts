@@ -1,5 +1,5 @@
 import type { Pool } from "pg";
-import { withWorkspace } from "./index.js";
+import { withWorkspace } from "../tenancy.js";
 
 export async function insertMediaAsset(
   pool: Pool,

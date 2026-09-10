@@ -6,7 +6,7 @@ import {
   createPostgresOutboxStore,
   migrate,
   withWorkspace,
-} from "./index.js";
+} from "../index.js";
 
 const adminUrl = process.env.DATABASE_URL ?? "";
 
