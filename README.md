@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/assets/scriora-mark.svg" width="72" height="72" alt="Scriora" />
+  <img src=".github/assets/scriora-mark.png" width="72" height="72" alt="Scriora" />
 </p>
 
 <h1 align="center">Scriora</h1>
@@ -39,11 +39,23 @@ First network: LinkedIn. More platforms follow on official APIs only.
 
 ## Getting started
 
-Application packages are still landing. Until then:
+Requires Node 22 and [pnpm](https://pnpm.io).
 
-1. Follow [CONTRIBUTING.md](CONTRIBUTING.md) for what we accept and reject
+```bash
+pnpm install
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
 
-Self-host and Cloud signup will land here when Compose is ready.
+Then:
+
+- Web: `pnpm --filter @scriora/web dev`
+- API: `pnpm --filter @scriora/api dev` (`GET /health`)
+- Worker: idle until queues exist (`pnpm --filter @scriora/worker dev`)
+
+Self-host Compose and Cloud signup land after Classic LinkedIn.
 
 ## Tech stack
 

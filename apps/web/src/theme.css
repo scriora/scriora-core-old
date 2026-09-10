@@ -1,0 +1,43 @@
+/**
+ * Scriora visual system — the only theme file.
+ * Colors, type roles, radii, focus, and motion live here.
+ * next/font in layout.tsx must set --font-display and --font-body to match.
+ */
+@theme {
+  --font-display: "Fraunces", serif;
+  --font-body: "IBM Plex Sans", sans-serif;
+  --color-ink: #0c0b09;
+  --color-rule: #2a261f;
+  --color-paper: #ede6d6;
+  --color-muted: #b9b09a;
+  --color-gold: #c4a35a;
+  --color-gold-bright: #e5b842;
+  --radius-mark: 0.875rem;
+}
+
+html {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-body);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

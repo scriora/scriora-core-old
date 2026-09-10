@@ -11,6 +11,10 @@ out/
 .turbo/
 *.tsbuildinfo
 
+# Next.js rewrites these on `next dev`; do not commit them
+apps/web/AGENTS.md
+apps/web/CLAUDE.md
+
 # Test / coverage
 coverage/
 .coverage/
