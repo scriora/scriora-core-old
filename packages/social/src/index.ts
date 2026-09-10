@@ -42,3 +42,4 @@ export function httpCreatedIsNotPublished(): false {
 }
 
 export * from "./oauth.js";
+export * from "./publish.js";

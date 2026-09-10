@@ -1,12 +1,17 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { createVault } from "@scriora/crypto";
-import { createPostgresLinkedInOAuthStore } from "@scriora/db";
+import {
+  createPostgresLinkedInOAuthStore,
+  createPostgresLinkedInPublishStore,
+} from "@scriora/db";
 import pg from "pg";
 import { buildApi } from "./app.js";
 import {
+  createLinkedInTextShare,
   exchangeLinkedInAuthorizationCode,
   fetchLinkedInMember,
+  verifyLinkedInShare,
 } from "./linkedin-http.js";
 
 const host = process.env.API_HOST ?? "127.0.0.1";
@@ -53,6 +58,17 @@ const linkedin =
       }
     : undefined;
 
+const linkedinPublish =
+  vault && pool
+    ? {
+        now: () => new Date(),
+        vault,
+        store: createPostgresLinkedInPublishStore(pool),
+        createShare: createLinkedInTextShare,
+        verifyShare: verifyLinkedInShare,
+      }
+    : undefined;
+
 if (vaultHex) {
   mkdirSync(mediaRoot, { recursive: true });
 }
@@ -67,6 +83,7 @@ const media = vaultHex
 
 const app = await buildApi({
   ...(linkedin ? { linkedin } : {}),
+  ...(linkedinPublish ? { linkedinPublish } : {}),
   ...(media ? { media } : {}),
 });
 await app.listen({ host, port });

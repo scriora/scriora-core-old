@@ -9,6 +9,8 @@ import {
 import {
   finishLinkedInConnect,
   type LinkedInOAuthPorts,
+  type LinkedInPublishPorts,
+  publishLinkedInText,
   startLinkedInConnect,
 } from "@scriora/social";
 import Fastify from "fastify";
@@ -39,6 +41,12 @@ const mediaCreateBody = z.object({
   mime: z.string().min(1),
 });
 
+const publishBody = z.object({
+  workspaceId: z.string().uuid(),
+  idempotencyKey: z.string().min(1).max(200),
+  text: z.string().min(1).max(3000),
+});
+
 const mediaPutQuery = z.object({
   workspaceId: z.string().uuid(),
   uploadId: z.string().min(1),
@@ -50,6 +58,7 @@ const mediaPutQuery = z.object({
 
 export type ApiDeps = {
   linkedin?: LinkedInOAuthPorts;
+  linkedinPublish?: LinkedInPublishPorts;
   media?: {
     hmacSecret: string;
     rootDir: string;
@@ -183,6 +192,24 @@ export async function buildApi(deps: ApiDeps = {}) {
       storageKey: stored.storageKey,
       linkedinAssetUrn: null,
     };
+  });
+
+  app.post("/publications", async (request, reply) => {
+    if (!deps.linkedinPublish) {
+      return reply.code(503).send({ error: "linkedin_publish_unconfigured" });
+    }
+    const body = publishBody.parse(request.body);
+    const result = await publishLinkedInText(deps.linkedinPublish, body);
+    if (!result.ok) {
+      const status =
+        result.error === "conflict"
+          ? 409
+          : result.error === "publish_denied"
+            ? 403
+            : 404;
+      return reply.code(status).send({ error: result.error });
+    }
+    return result.attempt;
   });
 
   return app;

@@ -60,6 +60,7 @@ export type ExistingPublishAttempt = {
 
 export type IdempotencyDecision =
   | { kind: "reserve" }
+  | { kind: "dispatch"; attempt: ExistingPublishAttempt }
   | { kind: "replay"; attempt: ExistingPublishAttempt }
   | { kind: "reconcile_only"; attempt: ExistingPublishAttempt }
   | { kind: "conflict"; status: 409 };
@@ -74,10 +75,85 @@ export function decideIdempotency(
   if (existing.fingerprint !== fingerprint) {
     return { kind: "conflict", status: 409 };
   }
-  if (existing.status === "UNKNOWN_EXTERNAL_STATE") {
-    return { kind: "reconcile_only", attempt: existing };
+  if (existing.status === "RESERVED") {
+    return { kind: "dispatch", attempt: existing };
   }
-  return { kind: "replay", attempt: existing };
+  if (
+    existing.status === "SUCCEEDED" ||
+    existing.status === "FAILED_PERMANENT"
+  ) {
+    return { kind: "replay", attempt: existing };
+  }
+  return { kind: "reconcile_only", attempt: existing };
+}
+
+export type LinkedInCreateObservation =
+  | { kind: "candidate"; restliId: string }
+  | { kind: "unknown_external_state" }
+  | { kind: "permanent_failure"; detail: string };
+
+export function observeLinkedInCreate(
+  httpStatus: number,
+  restliId: string | null,
+): LinkedInCreateObservation {
+  if ((httpStatus === 200 || httpStatus === 201) && restliId) {
+    return { kind: "candidate", restliId };
+  }
+  if (httpStatus === 200 || httpStatus === 201) {
+    return { kind: "unknown_external_state" };
+  }
+  if (
+    httpStatus === 400 ||
+    httpStatus === 401 ||
+    httpStatus === 403 ||
+    httpStatus === 404 ||
+    httpStatus === 422
+  ) {
+    return { kind: "permanent_failure", detail: `http ${httpStatus}` };
+  }
+  return { kind: "unknown_external_state" };
+}
+
+export function observeLinkedInVerify(
+  httpStatus: number,
+): "verified" | "pending" {
+  return httpStatus === 200 ? "verified" : "pending";
+}
+
+export function finalizePublishStatus(input: {
+  create: LinkedInCreateObservation;
+  verify: "verified" | "pending" | null;
+}): {
+  status: PublishAttemptStatus;
+  remoteOperationId: string | null;
+  externalPostId: string | null;
+} {
+  if (input.create.kind === "permanent_failure") {
+    return {
+      status: "FAILED_PERMANENT",
+      remoteOperationId: null,
+      externalPostId: null,
+    };
+  }
+  if (input.create.kind === "unknown_external_state") {
+    return {
+      status: "UNKNOWN_EXTERNAL_STATE",
+      remoteOperationId: null,
+      externalPostId: null,
+    };
+  }
+  if (input.verify === "verified") {
+    return {
+      status: "SUCCEEDED",
+      remoteOperationId: input.create.restliId,
+      externalPostId: input.create.restliId,
+    };
+  }
+  return {
+    status: "PLATFORM_PENDING",
+    remoteOperationId: input.create.restliId,
+    externalPostId: input.create.restliId,
+  };
 }
 
 export const oauthStateTtlMs = 10 * 60 * 1000;

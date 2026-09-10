@@ -3,7 +3,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createVault } from "@scriora/crypto";
-import { createMemoryLinkedInOAuthStore } from "@scriora/social";
+import {
+  createMemoryLinkedInOAuthStore,
+  createMemoryLinkedInPublishStore,
+} from "@scriora/social";
 import { describe, expect, it } from "vitest";
 import { buildApi } from "./app.js";
 
@@ -109,5 +112,58 @@ describe("api", () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+
+  it("publishes LinkedIn text once and does not call 201 verified", async () => {
+    const vault = createVault(new Map([[1, randomBytes(32)]]), 1);
+    let creates = 0;
+    const app = await buildApi({
+      linkedinPublish: {
+        now: () => new Date("2026-09-10T12:00:00.000Z"),
+        vault,
+        store: createMemoryLinkedInPublishStore([
+          {
+            workspaceId: "11111111-1111-4111-8111-111111111111",
+            memberId: "urn:li:person:abc",
+            canPublish: true,
+            tokenEnvelope: vault.encrypt(
+              new TextEncoder().encode(
+                JSON.stringify({ accessToken: "access" }),
+              ),
+            ),
+          },
+        ]),
+        async createShare() {
+          creates += 1;
+          return { httpStatus: 201, restliId: "urn:li:share:1" };
+        },
+        async verifyShare() {
+          return 403;
+        },
+      },
+    });
+    const payload = {
+      workspaceId: "11111111-1111-4111-8111-111111111111",
+      idempotencyKey: "pub-1",
+      text: "Hello professionals",
+    };
+    const first = await app.inject({
+      method: "POST",
+      url: "/publications",
+      payload,
+    });
+    const second = await app.inject({
+      method: "POST",
+      url: "/publications",
+      payload,
+    });
+    expect(first.statusCode).toBe(200);
+    expect(first.json()).toMatchObject({
+      status: "PLATFORM_PENDING",
+      externalPostId: "urn:li:share:1",
+    });
+    expect(second.json()).toMatchObject({ status: "PLATFORM_PENDING" });
+    expect(creates).toBe(1);
+    await app.close();
   });
 });
