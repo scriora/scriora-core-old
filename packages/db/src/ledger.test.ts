@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { appDatabaseUrl, migrate, withWorkspace } from "./index.js";
+import { createPostgresLinkedInOAuthStore } from "./oauth-store.js";
 
 const adminUrl = process.env.DATABASE_URL ?? "";
 
@@ -146,5 +147,60 @@ describe.skipIf(!adminUrl)("vault envelopes and unused ledgers", () => {
     expect(names).toContain("media_usage_entries.bytes");
     expect(names).not.toContain("llm_usage_entries.bytes");
     expect(names).not.toContain("media_usage_entries.prompt_tokens");
+  });
+
+  it("hides connected social accounts from other tenants", async () => {
+    const owner = randomUUID();
+    const workspaceA = randomUUID();
+    const workspaceB = randomUUID();
+    await app.query(`insert into users (id, email, name) values ($1, $2, $3)`, [
+      owner,
+      `${owner}@social.test`,
+      "Social",
+    ]);
+    await withWorkspace(app, workspaceA, async (client) => {
+      await client.query(
+        `insert into workspaces (id, name, slug, purpose, owner_user_id)
+         values ($1, 'Alpha', $2, 'PERSONAL', $3)`,
+        [workspaceA, `soc-a-${workspaceA.slice(0, 8)}`, owner],
+      );
+    });
+    await withWorkspace(app, workspaceB, async (client) => {
+      await client.query(
+        `insert into workspaces (id, name, slug, purpose, owner_user_id)
+         values ($1, 'Beta', $2, 'WORK', $3)`,
+        [workspaceB, `soc-b-${workspaceB.slice(0, 8)}`, owner],
+      );
+    });
+
+    const store = createPostgresLinkedInOAuthStore(app);
+    await store.saveConnectedAccount({
+      workspaceId: workspaceA,
+      account: {
+        externalAccountId: "urn:li:person:a",
+        displayName: "Ada",
+        grantedScopes: ["w_member_social"],
+        capabilities: {
+          oauth: true,
+          publish: true,
+          comments: false,
+          analytics: false,
+          inbox: false,
+        },
+        refreshMode: "reauthorize",
+        tokenExpiresAt: null,
+      },
+      tokenEnvelope: {
+        keyVersion: 1,
+        iv: new Uint8Array(12),
+        tag: new Uint8Array(16),
+        ciphertext: new Uint8Array([1, 2, 3]),
+      },
+    });
+
+    const asB = await withWorkspace(app, workspaceB, (client) =>
+      client.query("select id from social_accounts"),
+    );
+    expect(asB.rows).toEqual([]);
   });
 });

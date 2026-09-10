@@ -37,24 +37,8 @@ export function canRetryProviderCreate(
   return failureClass === "RETRYABLE";
 }
 
-export type LinkedInCapabilityManifest = {
-  network: "linkedin";
-  oauth: boolean;
-  publish: boolean;
-  comments: boolean;
-  analytics: boolean;
-  inbox: boolean;
-};
-
-export const linkedinCapabilityManifest: LinkedInCapabilityManifest = {
-  network: "linkedin",
-  oauth: false,
-  publish: false,
-  comments: false,
-  analytics: false,
-  inbox: false,
-};
-
 export function httpCreatedIsNotPublished(): false {
   return false;
 }
+
+export * from "./oauth.js";

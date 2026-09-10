@@ -29,12 +29,24 @@ importers:
 
   apps/api:
     dependencies:
+      '@scriora/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
+      '@scriora/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@scriora/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@scriora/social':
+        specifier: workspace:*
+        version: link:../../packages/social
       fastify:
         specifier: 5.12.3
         version: 5.12.3
+      pg:
+        specifier: 8.16.3
+        version: 8.16.3
       zod:
         specifier: 4.6.1
         version: 4.6.1
@@ -42,6 +54,9 @@ importers:
       '@types/node':
         specifier: 22.20.2
         version: 22.20.2
+      '@types/pg':
+        specifier: 8.15.5
+        version: 8.15.5
       esbuild:
         specifier: 0.28.2
         version: 0.28.2
@@ -246,6 +261,13 @@ importers:
         version: 5.9.3
 
   packages/social:
+    dependencies:
+      '@scriora/crypto':
+        specifier: workspace:*
+        version: link:../crypto
+      '@scriora/domain':
+        specifier: workspace:*
+        version: link:../domain
     devDependencies:
       '@types/node':
         specifier: 22.20.2

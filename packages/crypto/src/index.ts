@@ -1,4 +1,21 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+} from "node:crypto";
+
+export function sha256Hex(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+export function randomToken(bytes = 32): string {
+  return randomBytes(bytes).toString("base64url");
+}
+
+export function pkceChallengeS256(verifier: string): string {
+  return createHash("sha256").update(verifier).digest("base64url");
+}
 
 export type CipherRecord = {
   keyVersion: number;
